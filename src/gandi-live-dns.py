@@ -10,6 +10,8 @@ https://www.gnu.org/licenses/gpl-3.0.html
 Created on 13 Aug 2017
 http://doc.livedns.gandi.net/ 
 http://doc.livedns.gandi.net/#api-endpoint -> https://dns.gandi.net/api/v5/
+
+Modified by dgonneau on 04 July 2018
 '''
 
 import requests, json
@@ -45,13 +47,18 @@ def get_uuid():
 def get_dnsip(uuid):
     ''' find out IP from first Subdomain DNS-Record
     List all records with name "NAME" and type "TYPE" in the zone UUID
-    GET /zones/<UUID>/records/<NAME>/<TYPE>:
     
+    if api_mode = zones   : GET /zones/<UUID>/records/<NAME>/<TYPE>:
+    if api_mode = domains : GET /domains/<DOMAIN>/records/<NAME>/<TYPE>: 
+
     The first subdomain from config.subdomain will be used to get   
     the actual DNS Record IP
     '''
+    if config.api_mode == 'zones':
+        url = config.api_endpoint+ '/zones/' + uuid + '/records/' + config.subdomains[0] + '/A'
+    else:
+        url = config.api_endpoint+ '/domains/' + config.domain + '/records/' + config.subdomains[0] + '/A'
 
-    url = config.api_endpoint+ '/zones/' + uuid + '/records/' + config.subdomains[0] + '/A'
     headers = {"X-Api-Key":config.api_secret}
     u = requests.get(url, headers=headers)
     if u.status_code == 200:
@@ -61,7 +68,7 @@ def get_dnsip(uuid):
     else:
         print 'Error: HTTP Status Code ', u.status_code, 'when trying to get IP from subdomain', config.subdomains[0]   
         print  json_object['message']
-        exit()
+        exit()				
 
 def update_records(uuid, dynIP, subdomain):
     ''' update DNS Records for Subdomains 
@@ -73,7 +80,11 @@ def update_records(uuid, dynIP, subdomain):
                          "rrset_values": ["<VALUE>"]}' \
                     https://dns.gandi.net/api/v5/zones/<UUID>/records/<NAME>/<TYPE>
     '''
-    url = config.api_endpoint+ '/zones/' + uuid + '/records/' + subdomain + '/A'
+    if config.api_mode == 'zones':
+        url = config.api_endpoint+ '/zones/' + uuid + '/records/' + subdomain + '/A'
+    else:
+        url = config.api_endpoint+ '/domains/' + config.domain + '/records/' + subdomain + '/A'
+   
     payload = {"rrset_ttl": config.ttl, "rrset_values": [dynIP]}
     headers = {"Content-Type": "application/json", "X-Api-Key":config.api_secret}
     u = requests.put(url, data=json.dumps(payload), headers=headers)
